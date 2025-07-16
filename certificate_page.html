@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screener Pro - Certification</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .certificate-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+            border: 5px solid #00cec9;
+            position: relative;
+            overflow: hidden;
+        }
+        .certificate-header {
+            margin-bottom: 30px;
+        }
+        .certificate-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #00cec9;
+            margin-bottom: 10px;
+        }
+        .certificate-header p {
+            font-size: 1.2rem;
+            color: #555;
+        }
+        .certificate-body {
+            margin-bottom: 40px;
+        }
+        .certificate-body h2 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .certificate-body .score-text {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #00cec9;
+            margin-bottom: 10px;
+        }
+        .certificate-body .date-text {
+            font-size: 1rem;
+            color: #777;
+        }
+        .certificate-footer {
+            border-top: 1px dashed #ccc;
+            padding-top: 20px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+        .badge-icon {
+            font-size: 3rem;
+            color: gold; /* Or a specific badge color */
+            margin-bottom: 20px;
+        }
+        .action-buttons {
+            margin-top: 30px;
+        }
+        .action-buttons button, .action-buttons a {
+            background-color: #00cec9;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-decoration: none; /* For anchor tags */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+        }
+        .action-buttons button:hover, .action-buttons a:hover {
+            background-color: #00b0a8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+        .action-buttons button i, .action-buttons a i {
+            margin-right: 8px;
+        }
+
+        /* Print specific styles */
+        @media print {
+            body {
+                background-color: #fff;
+                margin: 0;
+                padding: 0;
+                display: block;
+            }
+            .certificate-container {
+                box-shadow: none;
+                border: none;
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100vh; /* Ensure it takes full page height */
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            .action-buttons, .certificate-footer .qr-code {
+                display: none; /* Hide buttons and QR code in print */
+            }
+            .certificate-header h1 {
+                font-size: 2rem;
+            }
+            .certificate-body h2 {
+                font-size: 2.5rem;
+            }
+            .certificate-body .score-text {
+                font-size: 1.5rem;
+            }
+            .certificate-footer {
+                border-top: none;
+                padding-top: 0;
+            }
+            /* Adjust margins/padding for print */
+            .certificate-container {
+                padding: 50px; /* Add some padding for print margins */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate-container">
+        <div class="certificate-header">
+            <img src="https://placehold.co/150x50/00cec9/ffffff?text=ScreenerPro" alt="Screener Pro Logo" class="mx-auto mb-4 rounded-md">
+            <h1>Screener Pro Certification of Excellence</h1>
+            <p>This is to certify that</p>
+        </div>
+        <div class="certificate-body">
+            <h2 id="candidate-name">Loading...</h2>
+            <p class="score-text">has been screened by Screener Pro and ranked among the <span id="rank-text">Top Performer</span></p>
+            <p class="score-text">Screener Score: <span id="score-value">--</span>/100</p>
+            <p class="date-text">Date: <span id="date-screened">--</span></p>
+        </div>
+        <div class="certificate-footer">
+            <p>✅ Verified at: <span id="verification-link">Loading...</span></p>
+            <div class="action-buttons">
+                <button onclick="window.print()"><i class="fas fa-download"></i> Download Certificate (PDF)</button>
+                <a id="linkedin-share-button" href="#" target="_blank"><i class="fab fa-linkedin"></i> Share on LinkedIn</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase REST API configuration (same as in main.py)
+        const FIREBASE_WEB_API_KEY = "AIzaSyDkYourRealAPIKey12345"; // Replace with your actual Firebase Web API Key
+        const FIREBASE_PROJECT_ID = "screenerproapp"; // Replace with your actual Firebase Project ID (from __app_id)
+        const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+        const CERTIFICATE_BASE_URL = "https://screenerpro.in/certificate"; // Match the base URL from main.py
+
+        // Helper to convert Firestore format to plain JS object
+        function fromFirestoreFormat(firestoreData) {
+            const data = {};
+            if (!firestoreData || !firestoreData.fields) {
+                return data;
+            }
+            for (const key in firestoreData.fields) {
+                const valueObj = firestoreData.fields[key];
+                if (valueObj.stringValue !== undefined) {
+                    data[key] = valueObj.stringValue;
+                } else if (valueObj.integerValue !== undefined) {
+                    data[key] = parseInt(valueObj.integerValue, 10);
+                } else if (valueObj.doubleValue !== undefined) {
+                    data[key] = parseFloat(valueObj.doubleValue);
+                } else if (valueObj.booleanValue !== undefined) {
+                    data[key] = valueObj.booleanValue;
+                } else if (valueObj.timestampValue !== undefined) {
+                    data[key] = new Date(valueObj.timestampValue).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                } else if (valueObj.nullValue !== undefined) {
+                    data[key] = null;
+                }
+                // Add more types as needed (arrayValue, mapValue) if your certificates store complex data
+            }
+            return data;
+        }
+
+        async function loadCertificate() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const certificateId = urlParams.get('id');
+
+            if (!certificateId) {
+                document.getElementById('candidate-name').innerText = 'Certificate Not Found';
+                document.getElementById('score-value').innerText = '';
+                document.getElementById('date-screened').innerText = '';
+                document.getElementById('rank-text').innerText = 'Invalid Certificate ID';
+                document.getElementById('verification-link').innerText = 'N/A';
+                document.getElementById('linkedin-share-button').style.display = 'none';
+                return;
+            }
+
+            const docPath = `artifacts/${FIREBASE_PROJECT_ID}/public/certificates/${certificateId}`;
+            const url = `${FIRESTORE_BASE_URL}/${docPath}?key=${FIREBASE_WEB_API_KEY}`;
+
+            try {
+                const response = await fetch(url);
+                if (response.status === 200) {
+                    const data = await response.json();
+                    const certificateData = fromFirestoreFormat(data);
+
+                    document.getElementById('candidate-name').innerText = certificateData.name || 'N/A';
+                    document.getElementById('score-value').innerText = certificateData.score !== undefined ? certificateData.score.toFixed(0) : '--';
+                    document.getElementById('date-screened').innerText = certificateData.date || '--';
+                    document.getElementById('rank-text').innerText = certificateData.rank || 'Top Performer';
+                    
+                    const verificationLink = `${CERTIFICATE_BASE_URL}?id=${certificateId}`;
+                    document.getElementById('verification-link').innerHTML = `<a href="${verificationLink}" target="_blank" class="text-blue-600 hover:underline">${verificationLink}</a>`;
+
+                    // LinkedIn Share Button
+                    const linkedinShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(verificationLink)}&title=${encodeURIComponent('Screener Pro Certified: ' + certificateData.name + ' - ' + certificateData.rank)}&summary=${encodeURIComponent('I am proud to share my Screener Pro Certification of Excellence with a score of ' + certificateData.score.toFixed(0) + '/100! #ScreenerPro #Certification #Career')}`;
+                    document.getElementById('linkedin-share-button').href = linkedinShareUrl;
+
+                } else if (response.status === 404) {
+                    document.getElementById('candidate-name').innerText = 'Certificate Not Found';
+                    document.getElementById('score-value').innerText = '';
+                    document.getElementById('date-screened').innerText = '';
+                    document.getElementById('rank-text').innerText = 'Certificate does not exist.';
+                    document.getElementById('verification-link').innerText = 'N/A';
+                    document.getElementById('linkedin-share-button').style.display = 'none';
+                } else {
+                    console.error('Error fetching certificate:', response.status, await response.text());
+                    document.getElementById('candidate-name').innerText = 'Error Loading Certificate';
+                    document.getElementById('score-value').innerText = '';
+                    document.getElementById('date-screened').innerText = '';
+                    document.getElementById('rank-text').innerText = 'Please try again later.';
+                    document.getElementById('verification-link').innerText = 'N/A';
+                    document.getElementById('linkedin-share-button').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Network or parsing error:', error);
+                document.getElementById('candidate-name').innerText = 'Network Error';
+                document.getElementById('score-value').innerText = '';
+                document.getElementById('date-screened').innerText = '';
+                document.getElementById('rank-text').innerText = 'Please check your internet connection.';
+                document.getElementById('verification-link').innerText = 'N/A';
+                document.getElementById('linkedin-share-button').style.display = 'none';
+            }
+        }
+
+        window.onload = loadCertificate;
+    </script>
+</body>
+</html>
