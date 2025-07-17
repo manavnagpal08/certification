@@ -154,10 +154,14 @@
         let userId = null;
         let isAuthReady = false;
 
-        // Global variables provided by the Canvas environment
+        // Global variables provided by the Canvas environment (or set by Python for attached HTML)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // IMPORTANT: This APP_BASE_URL is dynamically inserted from the Python backend.
+        // It should point to the base URL where this certificate.html is publicly hosted.
+        const APP_BASE_URL_FROM_PYTHON = "{{APP_BASE_URL}}"; // New placeholder
 
         // Initialize Firebase and authenticate
         async function initFirebase() {
@@ -198,19 +202,41 @@
         // Function to get query parameters from URL
         function getQueryParams() {
             const params = {};
-            const urlParts = window.location.pathname.split('/');
-            const idIndex = urlParts.indexOf('certificate') + 1; // Assuming URL is like /certificate/{id}
-            if (idIndex < urlParts.length) {
-                params['id'] = urlParts[idIndex];
+            // Check if the URL contains a path segment like /certificate/{id}
+            const pathParts = window.location.pathname.split('/');
+            const certIndex = pathParts.indexOf('certificate');
+            if (certIndex !== -1 && certIndex + 1 < pathParts.length) {
+                params['id'] = pathParts[certIndex + 1];
+            } else {
+                // Fallback for query parameter if path segment not found (e.g., certificate.html?id=...)
+                const urlParams = new URLSearchParams(window.location.search);
+                params['id'] = urlParams.get('id');
             }
             return params;
         }
 
         async function fetchCertificateData() {
-            if (!isAuthReady || !db) {
-                console.log("Firebase not ready or db not initialized, retrying...");
-                setTimeout(fetchCertificateData, 500); // Retry after 500ms
-                return;
+            // If opened as a local file, Firebase won't be configured, and data won't be fetched.
+            // The placeholders will already be filled by Python.
+            if (!isAuthReady || !db || !firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+                console.log("Firebase not fully configured or not hosted, relying on static content if available.");
+                // Ensure QR code and LinkedIn link still point to the intended public URL
+                const certificateId = document.getElementById('certificate-id').innerText;
+                if (certificateId && certificateId !== 'N/A' && APP_BASE_URL_FROM_PYTHON) {
+                    const verificationUrl = `${APP_BASE_URL_FROM_PYTHON}/certificate/${certificateId}`;
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: verificationUrl,
+                        width: 128,
+                        height: 128,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+
+                    const linkedinShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(verificationUrl)}&title=ScreenerPro%20Certified%20%E2%80%93%20Top%20Performer&summary=I%20just%20got%20certified%20by%20ScreenerPro!%20Check%20out%20my%20verification%20here:&source=ScreenerPro`;
+                    document.getElementById('linkedin-share-button').href = linkedinShareUrl;
+                }
+                return; // Exit if not fully configured for live data fetching
             }
 
             const queryParams = getQueryParams();
@@ -234,14 +260,11 @@
                     document.getElementById('certificate-id').innerText = data.certificate_id || "N/A";
                     document.getElementById('candidate-rank').innerText = data.rank || "N/A";
 
-                    const currentUrl = window.location.href;
-                    // Note: The verification link is usually the current URL of the certificate page
-                    // document.getElementById('verification-link').innerText = currentUrl;
-                    // document.getElementById('verification-link').href = currentUrl;
+                    const verificationUrl = `${APP_BASE_URL_FROM_PYTHON}/certificate/${certificateId}`; // Use the dynamic base URL
 
                     // Generate QR Code
                     new QRCode(document.getElementById("qrcode"), {
-                        text: currentUrl,
+                        text: verificationUrl,
                         width: 128,
                         height: 128,
                         colorDark : "#000000",
@@ -250,7 +273,7 @@
                     });
 
                     // LinkedIn Share Button
-                    const linkedinShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(currentUrl)}&title=ScreenerPro%20Certified%20%E2%80%93%20Top%20Performer&summary=I%20just%20got%20certified%20by%20ScreenerPro!%20Check%20out%20my%20verification%20here:&source=ScreenerPro`;
+                    const linkedinShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(verificationUrl)}&title=ScreenerPro%20Certified%20%E2%80%93%20Top%20Performer&summary=I%20just%20got%20certified%20by%20ScreenerPro!%20Check%20out%20my%20verification%20here:&source=ScreenerPro`;
                     document.getElementById('linkedin-share-button').href = linkedinShareUrl;
 
                 } else {
@@ -264,7 +287,13 @@
         }
 
         // Initialize Firebase when the window loads
-        window.onload = initFirebase;
+        // Only attempt Firebase init if running in a Canvas environment (where global vars are defined)
+        if (typeof __app_id !== 'undefined' && typeof __firebase_config !== 'undefined' && typeof __initial_auth_token !== 'undefined') {
+             window.onload = initFirebase;
+        } else {
+             // If not in Canvas, rely on static content and ensure QR/LinkedIn links are set if data is present
+             window.onload = fetchCertificateData; // Call directly to set QR/LinkedIn from static content
+        }
     </script>
 </body>
 </html>
